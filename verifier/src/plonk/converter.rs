@@ -17,6 +17,12 @@ use super::{
 pub(crate) fn load_plonk_verifying_key_from_bytes(
     buffer: &[u8],
 ) -> Result<PlonkVerifyingKey, PlonkError> {
+
+    // Minimum size of the buffer is 372 bytes
+    if buffer.len() < 372 {
+        return Err(PlonkError::GeneralError(Error::InvalidXLength));
+    }
+
     let size = u64::from_be_bytes([
         buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7],
     ]) as usize;
@@ -118,6 +124,11 @@ pub(crate) fn load_plonk_verifying_key_from_bytes(
 }
 
 pub(crate) fn load_plonk_proof_from_bytes(buffer: &[u8]) -> Result<PlonkProof, PlonkError> {
+    // Minimum size of the buffer is 516 bytes
+    if buffer.len() < 516 {
+        return Err(PlonkError::GeneralError(Error::InvalidXLength));
+    }
+
     let lro0 = uncompressed_bytes_to_g1_point(&buffer[..64])?;
     let lro1 = uncompressed_bytes_to_g1_point(&buffer[64..128])?;
     let lro2 = uncompressed_bytes_to_g1_point(&buffer[128..192])?;
@@ -177,6 +188,9 @@ pub(crate) fn load_plonk_proof_from_bytes(buffer: &[u8]) -> Result<PlonkProof, P
 }
 
 pub(crate) fn g1_to_bytes(g1: &AffineG1) -> Result<Vec<u8>, PlonkError> {
+    // Minimum size of the buffer is 64 bytes
+    // TODO: Check if the point is in the correct subgroup
+
     let mut bytes: [u8; 64] = unsafe { core::mem::transmute(*g1) };
     bytes[..32].reverse();
     bytes[32..].reverse();

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SNARK Verifier</title>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: rgb(128, 46, 244);
+            color: white;
+            font-family: 'Rubik', sans-serif;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: white;
+        }
+        select, button, input {
+            margin: 10px 0;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>SNARK Verifier</h1>
+    
+    <h2>Groth16 Verification</h2>
+    
+    <h3>Option 1: Verify with Custom Proof File (Calls SP1 directly)</h3>
+    <input type="file" id="groth16FileInput" accept=".bin">
+    <button id="verifyGroth16WithSP1">Verify Groth16</button>
+
+    <h3>Option 2: Verify from Predefined Proofs</h3>
+    <select id="groth16ProofSelect">
+        <option value="fibonacci_groth16_proof.bin">Fibonacci</option>
+        <option value="is-prime_groth16_proof.bin">Is Prime</option>
+        <option value="sha2_groth16_proof.bin">SHA2</option>
+        <option value="tendermint_groth16_proof.bin">Tendermint</option>
+    </select>
+    <button id="verifyGroth16">Verify Groth16</button>
+    
+    <p id="groth16Result"></p>
+
+    <h2>PLONK Verification</h2>
+    <select id="plonkProofSelect">
+        <option value="fibonacci_plonk_proof.bin">Fibonacci</option>
+        <option value="is-prime_plonk_proof.bin">Is Prime</option>
+        <option value="sha2_plonk_proof.bin">SHA2</option>
+        <option value="tendermint_plonk_proof.bin">Tendermint</option>
+    </select>
+    <button id="verifyPlonk">Verify PLONK</button>
+    <p id="plonkResult"></p>
+
+    <script type="module">
+        import init, { verify_proof, verify_proof_sp1, ProofMode } from './pkg/snark_bn254_verifier.js';
+
+        async function initializeWasm() {
+            await init();
+        }
+
+        async function verifyGroth16() {
+            try {
+                const selectedProof = document.getElementById('groth16ProofSelect').value;
+                const proofFile = `binaries/${selectedProof.replace('.bin', '.bin.json')}`;
+                const proofJson = await fetchProofJson(proofFile);
+                const result = await verify_proof(proofJson, ProofMode.Groth16);
+                document.getElementById('groth16Result').textContent = `Groth16 Verification Result: ${result}`;
+            } catch (error) {
+                console.error('Groth16 verification error:', error);
+                document.getElementById('groth16Result').textContent = 'Groth16 Verification Error: ' + error.message;
+            }
+        }
+
+        async function verifyGroth16WithSP1() {
+            try {
+                const fileInput = document.getElementById('groth16FileInput');
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    throw new Error('Please select a file first.');
+                }
+                const file = fileInput.files[0];
+
+                // Read the file as an ArrayBuffer
+                const arrayBuffer = await file.arrayBuffer();
+                const contents = new Uint8Array(arrayBuffer);
+
+                // Pass the bytes to verify_proof_sp1
+                const result = await verify_proof_sp1(contents, ProofMode.Groth16);
+                
+                const timestamp = new Date().toISOString();
+                const filename = file.name;
+                const algorithm = "Groth16";
+                document.getElementById('groth16Result').innerHTML += `[${timestamp}] (${filename}) <strong> ${algorithm} -> ${result} </strong><br />`;
+            } catch (error) {
+                console.error('Groth16 verification error:', error);
+                document.getElementById('groth16Result').textContent = 'Groth16 (w/ SP1) Verification Error: ' + error.message;
+            }
+        }
+
+        async function verifyPlonk() {
+            try {
+                const selectedProof = document.getElementById('plonkProofSelect').value;
+                const proofFile = `binaries/${selectedProof.replace('.bin', '.bin.json')}`;
+                const proofJson = await fetchProofJson(proofFile);
+                const result = await verify_proof(proofJson, ProofMode.Plonk);
+                document.getElementById('plonkResult').textContent = `PLONK Verification Result: ${result}`;
+            } catch (error) {
+                console.error('PLONK verification error:', error);
+                document.getElementById('plonkResult').textContent = 'PLONK Verification Error: ' + error.message;
+            }
+        }
+
+        async function fetchProofJson(filename) {
+            const response = await fetch(filename);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return await response.text();
+        }
+
+        /*
+        async function fetchProofData(filename) {
+            const response = await fetch(`binaries/${filename}`);
+            const arrayBuffer = await response.arrayBuffer();
+
+            // Parse the binary data and extract vk, proof, and publicInputs
+            // This is a placeholder and should be implemented based on your binary format
+            return {
+                vk: new Uint8Array(arrayBuffer.slice(0, 100)),
+                proof: new Uint8Array(arrayBuffer.slice(100, 200)),
+                publicInputs: new Uint8Array(arrayBuffer.slice(200))
+            };
+        }
+        */
+
+        initializeWasm().then(() => {
+            document.getElementById('verifyGroth16').addEventListener('click', verifyGroth16);
+            document.getElementById('verifyGroth16WithSP1').addEventListener('click', verifyGroth16WithSP1);
+            document.getElementById('verifyPlonk').addEventListener('click', verifyPlonk);
+        });
+    </script>
+</body>
+</html>

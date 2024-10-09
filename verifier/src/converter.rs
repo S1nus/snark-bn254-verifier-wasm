@@ -7,6 +7,15 @@ use crate::{
     error::Error,
 };
 
+use crate::wasm_bindgen;
+
+#[wasm_bindgen]
+/// Test
+extern {
+    #[wasm_bindgen(js_namespace = console)]
+    pub fn log(s: &str);
+}
+
 pub fn is_zeroed(first_byte: u8, buf: &[u8]) -> Result<bool, Error> {
     if first_byte != 0 {
         return Ok(false);
@@ -26,7 +35,7 @@ pub(crate) fn deserialize_with_flags(buf: &[u8]) -> Result<(Fq, CompressedPointF
     };
 
     let m_data = buf[0] & MASK;
-    if m_data == CompressedPointFlag::Infinity.into() {
+    if m_data == u8::from(CompressedPointFlag::Infinity) {
         if !is_zeroed(buf[0] & !MASK, &buf[1..32]).map_err(|_| Error::InvalidPoint)? {
             return Err(Error::InvalidPoint);
         }
@@ -74,11 +83,11 @@ pub(crate) fn unchecked_compressed_x_to_g1_point(buf: &[u8]) -> Result<AffineG1,
     Ok(AffineG1::new_unchecked(x, final_y))
 }
 
-pub(crate) fn uncompressed_bytes_to_g1_point(buf: &[u8]) -> Result<AffineG1, Error> {
+pub fn uncompressed_bytes_to_g1_point(buf: &[u8]) -> Result<AffineG1, Error> {
     if buf.len() != 64 {
         return Err(Error::InvalidXLength);
     };
-
+    
     let (x_bytes, y_bytes) = buf.split_at(32);
 
     let x = Fq::from_slice(x_bytes).map_err(Error::Field)?;
@@ -110,6 +119,7 @@ pub(crate) fn compressed_x_to_g2_point(buf: &[u8]) -> Result<AffineG2, Error> {
 
 pub(crate) fn unchecked_compressed_x_to_g2_point(buf: &[u8]) -> Result<AffineG2, Error> {
     if buf.len() != 64 {
+        log(&format!("Invalid input buffer length: expected 64, got {}", buf.len()));
         return Err(Error::InvalidXLength);
     };
 

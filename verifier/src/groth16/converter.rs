@@ -9,8 +9,21 @@ use crate::{
 };
 
 use super::error::Groth16Error;
+use crate::wasm_bindgen;
+
+#[wasm_bindgen]
+/// Test
+extern {
+    #[wasm_bindgen(js_namespace = console)]
+    pub fn log(s: &str);
+}
 
 pub(crate) fn load_groth16_proof_from_bytes(buffer: &[u8]) -> Result<Groth16Proof, Groth16Error> {
+
+    if buffer.len() < 256 {
+        return Err(Groth16Error::PrepareInputsFailed);
+    }
+
     let ar = uncompressed_bytes_to_g1_point(&buffer[..64])?;
     let bs = uncompressed_bytes_to_g2_point(&buffer[64..192])?;
     let krs = uncompressed_bytes_to_g1_point(&buffer[192..256])?;
@@ -22,11 +35,18 @@ pub(crate) fn load_groth16_proof_from_bytes(buffer: &[u8]) -> Result<Groth16Proo
         commitments: Vec::new(),
         commitment_pok: AffineG1::one(),
     })
+
 }
 
 pub(crate) fn load_groth16_verifying_key_from_bytes(
     buffer: &[u8],
 ) -> Result<Groth16VerifyingKey, Groth16Error> {
+
+    if buffer.len() < 292 {
+        log(&format!("Insufficient buffer length: expected at least 292 bytes, got {}", buffer.len()));
+        return Err(Groth16Error::PrepareInputsFailed);
+    }
+
     let g1_alpha = unchecked_compressed_x_to_g1_point(&buffer[..32])?;
     let g1_beta = unchecked_compressed_x_to_g1_point(&buffer[32..64])?;
     let g2_beta = unchecked_compressed_x_to_g2_point(&buffer[64..128])?;
@@ -37,6 +57,13 @@ pub(crate) fn load_groth16_verifying_key_from_bytes(
     let num_k = u32::from_be_bytes([buffer[288], buffer[289], buffer[290], buffer[291]]);
     let mut k = Vec::new();
     let mut offset = 292;
+
+    // Check if buffer has enough bytes for all k points
+    if buffer.len() < (offset + 32 * num_k as usize) {
+        log(&format!("Insufficient buffer length: expected at least {} bytes, got {}", offset + 32 * num_k as usize, buffer.len()));
+        return Err(Groth16Error::PrepareInputsFailed);
+    }
+
     for _ in 0..num_k {
         let point = unchecked_compressed_x_to_g1_point(&buffer[offset..offset + 32])?;
         k.push(point);
@@ -63,6 +90,10 @@ pub(crate) fn load_groth16_verifying_key_from_bytes(
         }
     }
 
+    if buffer.len() < (offset + 128) {
+        log(&format!("Insufficient buffer length: expected at least {} bytes, got {}", offset + 128, buffer.len()));
+        return Err(Groth16Error::PrepareInputsFailed);
+    }
     let commitment_key_g = unchecked_compressed_x_to_g2_point(&buffer[offset..offset + 64])?;
     let commitment_key_g_root_sigma_neg =
         unchecked_compressed_x_to_g2_point(&buffer[offset + 64..offset + 128])?;
