@@ -15,6 +15,8 @@ use plonk::{
 };
 use wasm_bindgen::prelude::*;
 use serde_json::Value;
+use std::panic;
+use console_error_panic_hook;
 use std::io::Read;
 use num_bigint::BigUint;
 use num_traits::Num;
@@ -89,6 +91,7 @@ pub fn verify_plonk_wasm(proof: &[u8], vk: &[u8], public_inputs: &[Fr]) -> Resul
 #[wasm_bindgen]
 /// WASM to verify a proof using the specified method
 pub fn verify_proof(proof_json: &str, method: ProofMode) -> Result<bool, JsValue> {
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
     // Parse the JSON string
     let json: Value = serde_json::from_str(proof_json)
         .map_err(|e| JsValue::from_str(&format!("Failed to parse JSON: {}", e)))?;
@@ -133,6 +136,7 @@ pub fn verify_proof(proof_json: &str, method: ProofMode) -> Result<bool, JsValue
 /// WASM to verify a proof using SP1 to read proof and public inputs
 pub fn verify_proof_sp1(contents: &[u8], method: ProofMode) -> Result<bool, JsValue> {
 
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
     // log("Deserializing proof from buffer");
 
     // Load the saved proof and convert it to the specified proof mode
